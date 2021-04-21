@@ -83,33 +83,24 @@ function msecStamp() {
 }
 
 function readFile(name, hnd) {
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', name, true);
-    xhr.send();
-    xhr.onreadystatechange = function() {
-      if (xhr.readyState != 4) return;
-      if (xhr.status != 200) {
-        hnd(null);
-      } else {
-        hnd(xhr.responseText);
-      }
-    };
+  return fetch(name, {method: 'GET'}).then(response => response.text().then(txt => hnd(txt)));
 }
 
-function joinFilesHlp(files, idx, datas, hnd) {
-    if(files.length == idx) {
-        hnd(datas);
-    } else {
-        readFile(files[idx], function(fd) {
-            datas.push(fd);
-            joinFilesHlp(files, ++idx, datas, hnd);
-        });
-    }
-}
-
-function joinFiles(files, hnd) {
+function readFiles(hnd, ...files) {
+  var idx = 0;
   var datas = [];
-  joinFilesHlp(files, 0, datas, hnd);
+  var pending = files.length;
+  for (var f of files) {
+    datas.push(null);
+    readFile(f, function(i) {
+      return function(txt) {
+        datas[i] = txt;
+        if (!--pending) {
+          hnd(datas, files);
+        }
+      }
+    }(idx++));
+  }
 }
 
 function trueAdd(set, value) {
